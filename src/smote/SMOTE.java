@@ -23,7 +23,6 @@ public class SMOTE {
 	int numattrs;
 	int n_numattrs;
 	private int T;
-	private Double Med;
 	String[] narray;
 	private Double[][] Synthetic;//生成样本
 	private String[][] Synthetic_n;//生成样本
@@ -77,7 +76,6 @@ public class SMOTE {
 			n_numattrs = min_nominal_features[0].length-1;
 			Sample_n =  min_nominal_features;
 			//Compute the median of standard deviations of all continuous features for the minority class
-			Med = helper.cal_Med(numattrs, Sample);	       
 //只有离散值
 		}else if(datatype == Datatype.No.ordinal()){
 			this.T = min_nominal_features.length;
@@ -106,13 +104,13 @@ public class SMOTE {
 		Synthetic_n = new String[T * N][n_numattrs+1];
 		int[] nnarray;
 		for(int i = 0;i<T;i++) {
-			if(datatype!= Datatype.No.ordinal()) {
-				nnarray = Get_k_nearest(i);
-				if(datatype == Datatype.NC.ordinal()) {
-					narray = helper.Get_n_k_nearest(nnarray,n_numattrs,Sample_n);	
-				}
+			if(datatype == Datatype.Co.ordinal()) {
+				nnarray = helper.Get_k_nearest(Sample[i], K,Sample);
+			}else if(datatype == Datatype.NC.ordinal()){
+				nnarray = helper.Get_nk_nearest(Sample[i],Sample_n[i], K,Sample,Sample_n);
+				narray = helper.Get_n_k_nearest(nnarray,n_numattrs,Sample_n);	
 			}else {
-				nnarray = helper.Get_alln_k_nearest_distance(i, T, n_numattrs, Sample_n, K, Sample_maxn);
+				nnarray = helper.Get_alln_k_nearest_distance(Sample_n[i], K , Sample_n,Sample_maxn);
 				narray = helper.Get_n_k_nearest(nnarray,n_numattrs,Sample_n);	
 		}
 		Populate(N,i,nnarray);
@@ -151,52 +149,6 @@ public class SMOTE {
 		N1--;
 	}
 }
-	/*
-	 * num: the num of the index of current sample
-	 */
-	int[] Get_k_nearest(int num) {
-		//求近邻矩阵（非最近邻），距离为欧氏距离
-		double tmp;
-		Double[] dis_matrix = new Double[T]; // 距离矩阵，用于求取最近邻
-		//Compute the median of standard deviations of all continuous features for the minority class
-		for (int j = 0; j < T; j++) {
-			tmp = 0;
-			//最后一列是class
-			for (int k = 0; k < numattrs; k++) {
-				 tmp = tmp + Math.pow(Sample[num][k]-Sample[j][k], 2);
-			}
-			//离散值处理，加上penalty
-			if(datatype == Datatype.NC.ordinal()) {
-				for (int k = 0; k < n_numattrs ; k++) {
-					if(Sample_n[num][k]!=Sample_n[j][k])
-					 tmp = tmp + Med;
-				}
-			}
-//				i样本点到j样本点的距离
-			 dis_matrix[j] = Math.sqrt(tmp);
-		}
-		logger.debug("当前点的距离矩阵为{}",(Object) dis_matrix);
-		
-		// 下面求n个最近邻的下标，按照距离升序
-		int locat = 0;
-		double min;
-		int[] nnarray = new int[K]; // nnarray存储近邻位置，用于存储位置
-		for (int k = 0; k < K; k++) { // 查找k次最小值及下标
-			min = Double.POSITIVE_INFINITY; // 初始值设为无限大
-			for (int j = 0; j < T; j++) { // 查找最小值及下标
-				//不能取到样本点本身
-				if (dis_matrix[j] < min && dis_matrix[j] != 0) {
-					min = dis_matrix[j];
-					locat = j;
-				}
-			}
-			nnarray[k] = locat;
-			dis_matrix[locat] = (double) 0; // 每找到一个非0的最小值，设为0，下一次遍历寻找次小值
-		}
-			logger.debug("当前点的最近距离矩阵索引为{}",nnarray);
-
-		return nnarray;
-	}
 
 	
 }

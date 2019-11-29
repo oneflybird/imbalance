@@ -8,8 +8,94 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class helper {
 	
+	public static int[] Get_nk_nearest(Double[] sample,String[] sample_n,int K,Double[][] Sample,String[][] Sample_n) {
+		final Logger logger = LoggerFactory.getLogger("Get_nk_nearest");
+		int T = Sample.length;
+		int numattrs = Sample[0].length-1;
+		double Med = helper.cal_Med(numattrs, Sample);	 
+		//求近邻矩阵（非最近邻），距离为欧氏距离
+		double tmp;
+		Double[] dis_matrix = new Double[T]; // 距离矩阵，用于求取最近邻
+		//Compute the median of standard deviations of all continuous features for the minority class
+		for (int j = 0; j < T; j++) {
+			tmp = 0;
+			//最后一列是class
+			for (int k = 0; k < numattrs; k++) {
+				 tmp = tmp + Math.pow(sample[k]-Sample[j][k], 2);
+			}
+			//离散值处理，加上penalty
+			int n_numattrs = Sample_n[0].length-1;
+			for (int k = 0; k < n_numattrs ; k++) {
+				if(sample_n[k]!=Sample_n[j][k])
+				 tmp = tmp + Med;
+			}
+//			i样本点到j样本点的距离
+			 dis_matrix[j] = Math.sqrt(tmp);
+		}
+		logger.debug("当前点的距离矩阵为{}",(Object) dis_matrix);
+		
+		// 下面求n个最近邻的下标，按照距离升序
+		int locat = 0;
+		double min;
+		int[] nnarray = new int[K]; // nnarray存储近邻位置，用于存储位置
+		for (int k = 0; k < K; k++) { // 查找k次最小值及下标
+			min = Double.POSITIVE_INFINITY; // 初始值设为无限大
+			for (int j = 0; j < T; j++) { // 查找最小值及下标
+				//不能取到样本点本身
+				if (dis_matrix[j] < min && dis_matrix[j] != 0) {
+					min = dis_matrix[j];
+					locat = j;
+				}
+			}
+			nnarray[k] = locat;
+			dis_matrix[locat] = (double) 0; // 每找到一个非0的最小值，设为0，下一次遍历寻找次小值
+		}
+			logger.debug("当前点的最近距离矩阵索引为{}",nnarray);
+
+		return nnarray;
+	}
+	
+	public static int[] Get_k_nearest(Double[] sample,int K,Double[][] Sample) {
+		final Logger logger = LoggerFactory.getLogger("Get_k_nearest");
+		int T = Sample.length;
+		int numattrs = Sample[0].length-1;
+		//求近邻矩阵（非最近邻），距离为欧氏距离
+		double tmp;
+		Double[] dis_matrix = new Double[T]; // 距离矩阵，用于求取最近邻
+		for (int j = 0; j < T; j++) {
+			tmp = 0;
+			//最后一列是class
+			for (int k = 0; k < numattrs; k++) {
+				 tmp = tmp + Math.pow(sample[k]-Sample[j][k], 2);
+			}
+//	i样本点到j样本点的距离
+			 dis_matrix[j] = Math.sqrt(tmp);
+		}
+		logger.debug("当前点的距离矩阵为{}",(Object) dis_matrix);
+		
+		// 下面求n个最近邻的下标，按照距离升序
+		int locat = 0;
+		double min;
+		int[] nnarray = new int[K]; // nnarray存储近邻位置，用于存储位置
+		for (int k = 0; k < K; k++) { // 查找k次最小值及下标
+			min = Double.POSITIVE_INFINITY; // 初始值设为无限大
+			for (int j = 0; j < T; j++) { // 查找最小值及下标
+				//不能取到样本点本身
+				if (dis_matrix[j] < min && dis_matrix[j] != 0) {
+					min = dis_matrix[j];
+					locat = j;
+				}
+			}
+			nnarray[k] = locat;
+			dis_matrix[locat] = (double) 0; // 每找到一个非0的最小值，设为0，下一次遍历寻找次小值
+		}
+			logger.debug("当前点的最近距离矩阵索引为{}",nnarray);
+
+		return nnarray;
+	}
 	//对于半离散半连续数据，生成样本的离散值narray取自其最近邻离散特征中出现次数最多的值
 	/*
 	 nnarray：  当前样本的连续特征的k个最近邻的索引列表
@@ -52,7 +138,7 @@ public class helper {
 	 * numattrs: 连续值属性个数
 	 * Sample：连续特征矩阵，最后一列是类别
 	 */
-	static Double cal_Med(int numattrs,Double[][] Sample) {
+	public static Double cal_Med(int numattrs,Double[][] Sample) {
 		//Compute the median of standard deviations of all continuous features for the minority class
 		Double Med;
 		//1. 求每个特征的平均值
@@ -96,8 +182,10 @@ public class helper {
 	 * Sample_n: 离散特征矩阵
 	 * Sample_max_n:另一个类别的离散特征矩阵
 	 */
-	static int[] Get_alln_k_nearest_distance(int num,int T,int n_numattrs,String[][] Sample_n,int K,String[][] Sample_maxn) {
+	public static int[] Get_alln_k_nearest_distance(String[] sample_n,int K,String[][] Sample_n,String[][] Sample_maxn) {
 		final Logger logger = LoggerFactory.getLogger("Get_alln_k_nearest_distance");
+		int T = Sample_n.length;
+		int n_numattrs = Sample_n[0].length-1;
 		Double[] dis_matrix = new Double[T]; // 距离矩阵，用于求取最近邻
 //		1. distance δ 
 //		1.1 在两个类别中的出现次数
@@ -113,7 +201,7 @@ public class helper {
 				int countj_2 = 0; 
 				//总次数是两个类出现次数相加
 				for (int j2 = 0; j2 < T; j2++) {
-					if(Sample_n[num][k].equals(Sample_n[j2][k])) {
+					if(sample_n[k].equals(Sample_n[j2][k])) {
 						count_1++;
 					}
 					if(Sample_n[j][k].equals(Sample_n[j2][k])) {
@@ -121,7 +209,7 @@ public class helper {
 					}
 				}
 				for (int j2 = 0; j2 < Sample_maxn.length; j2++) {
-					if(Sample_n[num][k].equals(Sample_maxn[j2][k])) {
+					if(sample_n[k].equals(Sample_maxn[j2][k])) {
 						count_2++;
 					}
 					if(Sample_n[j][k].equals(Sample_maxn[j2][k])) {
